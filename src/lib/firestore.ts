@@ -1,11 +1,15 @@
 import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, limit as limitQuery, Timestamp, serverTimestamp, FieldValue, getDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, limit as limitQuery, Timestamp, serverTimestamp, FieldValue, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { Task, TaskPriority, TaskStatus } from '@/types/task';
+import { Quote, QuoteStatus } from '@/types/quote';
 
 export interface Contact {
-  id?: string;
+  id: string;
   name: string;
-  email?: string;
+  email: string;
   phone?: string;
+  address?: string;
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -187,6 +191,187 @@ export async function getAllExpenses(): Promise<Expense[]> {
     });
   } catch (error) {
     console.error('Error getting expenses:', error);
+    throw error;
+  }
+}
+
+export async function getAllTasks(): Promise<Task[]> {
+  try {
+    const querySnapshot = await getDocs(
+      query(collection(db, 'tasks'), orderBy('createdAt', 'desc'))
+    );
+
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        status: data.status,
+        completionPercentage: data.completionPercentage || 0,
+        dueDate: data.dueDate instanceof Timestamp ? data.dueDate.toDate() : data.dueDate ? new Date(data.dueDate) : undefined,
+        assignedTo: data.assignedTo,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      };
+    });
+  } catch (error) {
+    console.error('Error getting tasks:', error);
+    throw error;
+  }
+}
+
+export async function createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  try {
+    const docRef = await addDoc(collection(db, 'tasks'), {
+      ...task,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating task:', error);
+    throw error;
+  }
+}
+
+export async function updateTask(taskId: string, task: Partial<Task>): Promise<void> {
+  try {
+    const taskRef = doc(db, 'tasks', taskId);
+    await updateDoc(taskRef, {
+      ...task,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    throw error;
+  }
+}
+
+export async function createQuote(data: Partial<Quote>): Promise<string> {
+  try {
+    const now = new Date();
+    const quoteData = {
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const docRef = await addDoc(collection(db, 'quotes'), quoteData);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating quote:', error);
+    throw error;
+  }
+}
+
+export async function getQuote(id: string): Promise<Quote | null> {
+  try {
+    const docRef = doc(db, 'quotes', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+      } as Quote;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting quote:', error);
+    throw error;
+  }
+}
+
+export async function updateQuote(id: string, data: Partial<Quote>): Promise<void> {
+  try {
+    const docRef = doc(db, 'quotes', id);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    console.error('Error updating quote:', error);
+    throw error;
+  }
+}
+
+export async function deleteQuote(quoteId: string): Promise<void> {
+  try {
+    const quoteRef = doc(db, 'quotes', quoteId);
+    await deleteDoc(quoteRef);
+  } catch (error) {
+    console.error('Error deleting quote:', error);
+    throw error;
+  }
+}
+
+export async function getAllQuotes(): Promise<Quote[]> {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'quotes'));
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Quote));
+  } catch (error) {
+    console.error('Error getting all quotes:', error);
+    throw error;
+  }
+}
+
+export async function getQuotesByTask(taskId: string): Promise<Quote[]> {
+  try {
+    const q = query(collection(db, 'quotes'), where('taskId', '==', taskId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Quote));
+  } catch (error) {
+    console.error('Error getting quotes by task:', error);
+    throw error;
+  }
+}
+
+export async function getTask(id: string): Promise<Task | null> {
+  try {
+    const docRef = doc(db, 'tasks', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+      } as Task;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting task:', error);
+    throw error;
+  }
+}
+
+export async function getContact(id: string): Promise<Contact | null> {
+  try {
+    const docRef = doc(db, 'contacts', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+      } as Contact;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting contact:', error);
     throw error;
   }
 } 
