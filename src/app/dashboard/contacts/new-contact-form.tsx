@@ -37,7 +37,7 @@ export function NewContactForm({ onSuccess, onCancel }: NewContactFormProps) {
     try {
       await createContact({
         name,
-        email: email || undefined,
+        email,
         phone: phone || undefined,
       });
 

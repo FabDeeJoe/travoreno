@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Home, MessageSquare, Users, ClipboardList, Receipt, LogOut } from 'lucide-react';
+import { Home, MessageSquare, Users, ClipboardList, Receipt, LogOut, FileText } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -49,6 +49,13 @@ export default function DashboardLayout({
           >
             <ClipboardList className="h-5 w-5" />
             <span>Tâches</span>
+          </Link>
+          <Link
+            href="/dashboard/quotes"
+            className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+          >
+            <FileText className="h-5 w-5" />
+            <span>Devis</span>
           </Link>
           <Link
             href="/dashboard/expenses"

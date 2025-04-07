@@ -60,7 +60,7 @@ export function QuickCommunicationDialog() {
         // Créer un nouveau contact
         const contact = await createContact({
           name: formData.name,
-          email: formData.email || undefined,
+          email: formData.email,
           phone: formData.phone || undefined,
         });
         contactId = contact.id!;

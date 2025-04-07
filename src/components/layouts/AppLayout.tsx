@@ -7,7 +7,8 @@ import {
   ClipboardList, 
   Receipt, 
   LogOut,
-  Home
+  Home,
+  FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { ReactNode } from 'react';
@@ -33,6 +34,11 @@ const DEFAULT_MENU_ITEMS = [
     title: 'Tâches',
     icon: <ClipboardList className="w-5 h-5" />,
     href: '/dashboard/tasks',
+  },
+  {
+    title: 'Devis',
+    icon: <FileText className="w-5 h-5" />,
+    href: '/dashboard/quotes',
   },
   {
     title: 'Dépenses',
