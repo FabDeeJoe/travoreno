@@ -1,11 +1,20 @@
 'use client';
 
 import { useCommunications } from '@/hooks/useCommunications';
+import { useContacts } from '@/hooks/useContacts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QuickCommunicationDialog } from '@/components/QuickCommunicationDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Mail, Phone, Calendar, MessageSquare } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 const TYPE_ICONS = {
   email: <Mail className="h-4 w-4" />,
@@ -23,6 +32,11 @@ const TYPE_LABELS = {
 
 export default function CommunicationsPage() {
   const { communications, isLoading } = useCommunications(50);
+  const { contacts } = useContacts();
+
+  function getContactName(contactId: string) {
+    return contacts.find((c) => c.id === contactId)?.name || '—';
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -49,26 +63,39 @@ export default function CommunicationsPage() {
             </CardContent>
           </Card>
         ) : (
-          communications.map((comm) => (
-            <Card key={comm.id}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="flex items-center space-x-2">
-                  {TYPE_ICONS[comm.type]}
-                  <CardTitle className="text-sm font-medium">
-                    {TYPE_LABELS[comm.type]} - {comm.subject}
-                  </CardTitle>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(comm.createdAt, { addSuffix: true, locale: fr })}
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {comm.content}
-                </p>
-              </CardContent>
-            </Card>
-          ))
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Sujet</TableHead>
+                    <TableHead>Contenu</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {communications.map((comm) => (
+                    <TableRow key={comm.id}>
+                      <TableCell>
+                        {formatDistanceToNow(comm.createdAt, { addSuffix: true, locale: fr })}
+                      </TableCell>
+                      <TableCell>{getContactName(comm.contactId)}</TableCell>
+                      <TableCell className="flex items-center gap-2">
+                        {TYPE_ICONS[comm.type]}
+                        <span>{TYPE_LABELS[comm.type]}</span>
+                      </TableCell>
+                      <TableCell>{comm.subject}</TableCell>
+                      <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                        {comm.content}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

@@ -39,6 +39,10 @@ export default function DashboardPage() {
   const ongoingOrBlockedTasks = tasks.filter(task => task.status === 'in_progress' || task.status === 'blocked');
   const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
+  function getContactName(contactId: string) {
+    return contacts.find((c) => c.id === contactId)?.name || '—';
+  }
+
   const stats = [
     {
       title: 'Contacts',
@@ -113,6 +117,9 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-xs text-muted-foreground line-clamp-2">
                       {comm.content}
+                    </div>
+                    <div className="text-xs text-muted-foreground italic">
+                      {getContactName(comm.contactId)}
                     </div>
                   </Card>
                 ))}
