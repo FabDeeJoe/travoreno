@@ -9,6 +9,11 @@ import { getRecentCommunications, type Communication } from '@/lib/firestore';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useCommunications } from '@/hooks/useCommunications';
+import { useContacts } from '@/hooks/useContacts';
+import { useTasks } from '@/hooks/useTasks';
+import { useExpenses } from '@/hooks/useExpenses';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 const TYPE_ICONS = {
   email: <Mail className="h-4 w-4" />,
@@ -26,12 +31,18 @@ const TYPE_LABELS = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { contacts } = useContacts();
+  const { tasks } = useTasks();
+  const { expenses } = useExpenses();
   const { communications: recentCommunications, isLoading } = useCommunications(5);
+
+  const ongoingOrBlockedTasks = tasks.filter(task => task.status === 'in_progress' || task.status === 'blocked');
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
   const stats = [
     {
       title: 'Contacts',
-      value: '0',
+      value: contacts.length.toString(),
       icon: <Users className="w-8 h-8 text-blue-500" />,
       description: 'Professionnels enregistrés',
     },
@@ -43,13 +54,13 @@ export default function DashboardPage() {
     },
     {
       title: 'Tâches',
-      value: '0',
+      value: tasks.length.toString(),
       icon: <ClipboardList className="w-8 h-8 text-purple-500" />,
       description: 'En cours',
     },
     {
       title: 'Dépenses',
-      value: '0 €',
+      value: new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalExpenses),
       icon: <DollarSign className="w-8 h-8 text-yellow-500" />,
       description: 'Budget total',
     },
@@ -86,30 +97,24 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Chargement des communications...
-              </p>
+              <p className="text-sm text-muted-foreground">Chargement des communications...</p>
             ) : recentCommunications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Aucune communication récente
-              </p>
+              <p className="text-sm text-muted-foreground">Aucune communication récente</p>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {recentCommunications.map((comm) => (
-                  <div key={comm.id} className="flex items-start space-x-3">
-                    {TYPE_ICONS[comm.type]}
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {TYPE_LABELS[comm.type]} - {comm.subject}
-                      </p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {comm.content}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
+                  <Card key={comm.id} className="p-3 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      {TYPE_ICONS[comm.type]}
+                      <span className="font-medium text-sm truncate">{TYPE_LABELS[comm.type]} - {comm.subject}</span>
+                      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
                         {formatDistanceToNow(comm.createdAt, { addSuffix: true, locale: fr })}
-                      </p>
+                      </span>
                     </div>
-                  </div>
+                    <div className="text-xs text-muted-foreground line-clamp-2">
+                      {comm.content}
+                    </div>
+                  </Card>
                 ))}
               </div>
             )}
@@ -117,12 +122,28 @@ export default function DashboardPage() {
         </Card>
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Tâches en cours</CardTitle>
+            <CardTitle>Tâches en cours / bloquées</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Aucune tâche en cours
-            </p>
+            {ongoingOrBlockedTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune tâche en cours ou bloquée</p>
+            ) : (
+              <ul className="space-y-2">
+                {ongoingOrBlockedTasks.map((task) => (
+                  <li key={task.id} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{task.title}</span>
+                      <Badge variant={task.status === 'in_progress' ? 'default' : task.status === 'blocked' ? 'destructive' : 'secondary'}>
+                        {task.status === 'in_progress' ? 'En cours' : task.status === 'blocked' ? 'Bloquée' : task.status}
+                      </Badge>
+                      <span className="ml-2 text-xs text-muted-foreground">{task.completionPercentage}%</span>
+                    </div>
+                    <Progress value={task.completionPercentage} className="w-full h-2 my-1" />
+                    <span className="text-xs text-muted-foreground">{task.description}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>
