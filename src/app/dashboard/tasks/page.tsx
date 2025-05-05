@@ -29,6 +29,7 @@ import { fr } from 'date-fns/locale';
 import { NewTaskForm } from './new-task-form';
 import { TaskDetails } from './task-details';
 import { Progress } from '@/components/ui/progress';
+import { useTasks } from '@/hooks/useTasks';
 
 const PRIORITY_BADGES = {
   low: { label: 'Faible', variant: 'secondary' as const },
@@ -44,36 +45,22 @@ const STATUS_BADGES = {
 };
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { tasks, isLoading } = useTasks();
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
 
   useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const data = await getAllTasks();
-        setTasks(data);
-        setFilteredTasks(data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des tâches:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadTasks();
-  }, []);
+    const filtered = tasks.filter((task) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredTasks(filtered);
+  }, [tasks, searchQuery]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    const filtered = tasks.filter((task) =>
-      task.title.toLowerCase().includes(query.toLowerCase()) ||
-      task.description.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredTasks(filtered);
   };
 
   return (
@@ -159,7 +146,22 @@ export default function TasksPage() {
                     </TableCell>
                     <TableCell>
                       {task.dueDate
-                        ? format(task.dueDate, 'dd/MM/yyyy', { locale: fr })
+                        ? (() => {
+                            let dateObj: Date;
+                            if (typeof task.dueDate === 'string' || typeof task.dueDate === 'number') {
+                              dateObj = new Date(task.dueDate);
+                            } else if (task.dueDate instanceof Date) {
+                              dateObj = task.dueDate;
+                            } else if (task.dueDate && typeof (task.dueDate as any).toDate === 'function') {
+                              // Cas Firestore Timestamp
+                              dateObj = (task.dueDate as any).toDate();
+                            } else {
+                              return '-';
+                            }
+                            return isNaN(dateObj.getTime())
+                              ? '-'
+                              : format(dateObj, 'dd/MM/yyyy', { locale: fr });
+                          })()
                         : '-'}
                     </TableCell>
                     <TableCell>{task.assignedTo || '-'}</TableCell>

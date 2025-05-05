@@ -24,6 +24,8 @@ import { Mail, Phone, Calendar, MessageSquare, UserPlus, Search } from 'lucide-r
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { NewContactForm } from './new-contact-form';
+import { useCommunications } from '@/hooks/useCommunications';
+import { useContacts } from '@/hooks/useContacts';
 
 const TYPE_ICONS = {
   email: <Mail className="h-4 w-4" />,
@@ -44,23 +46,7 @@ interface ContactDetailsProps {
 }
 
 function ContactDetails({ contact }: ContactDetailsProps) {
-  const [communications, setCommunications] = useState<Communication[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadCommunications = async () => {
-      try {
-        const data = await getContactCommunications(contact.id!);
-        setCommunications(data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des communications:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCommunications();
-  }, [contact.id]);
+  const { communications, isLoading } = useCommunications(undefined, contact.id);
 
   return (
     <div className="space-y-6">
@@ -76,13 +62,17 @@ function ContactDetails({ contact }: ContactDetailsProps) {
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Créé le</h3>
           <p className="text-sm">
-            {formatDistanceToNow(contact.createdAt, { addSuffix: true, locale: fr })}
+            {contact.createdAt && !isNaN(contact.createdAt.getTime())
+              ? formatDistanceToNow(contact.createdAt, { addSuffix: true, locale: fr })
+              : 'Date inconnue'}
           </p>
         </div>
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Dernière modification</h3>
           <p className="text-sm">
-            {formatDistanceToNow(contact.updatedAt, { addSuffix: true, locale: fr })}
+            {contact.updatedAt && !isNaN(contact.updatedAt.getTime())
+              ? formatDistanceToNow(contact.updatedAt, { addSuffix: true, locale: fr })
+              : 'Date inconnue'}
           </p>
         </div>
       </div>
@@ -123,27 +113,14 @@ function ContactDetails({ contact }: ContactDetailsProps) {
 }
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const { contacts, isLoading } = useContacts();
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewContactDialogOpen, setIsNewContactDialogOpen] = useState(false);
 
   useEffect(() => {
-    const loadContacts = async () => {
-      try {
-        const data = await getAllContacts();
-        setContacts(data);
-        setFilteredContacts(data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des contacts:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadContacts();
-  }, []);
+    setFilteredContacts(contacts);
+  }, [contacts]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -217,7 +194,9 @@ export default function ContactsPage() {
                     <TableCell>{contact.email || '-'}</TableCell>
                     <TableCell>{contact.phone || '-'}</TableCell>
                     <TableCell>
-                      {formatDistanceToNow(contact.updatedAt, { addSuffix: true, locale: fr })}
+                      {contact.updatedAt && !isNaN(contact.updatedAt.getTime())
+                        ? formatDistanceToNow(contact.updatedAt, { addSuffix: true, locale: fr })
+                        : 'Date inconnue'}
                     </TableCell>
                     <TableCell>
                       <Dialog>

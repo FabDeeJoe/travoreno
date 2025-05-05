@@ -8,6 +8,7 @@ import { Users, ClipboardList, Receipt, Phone, Mail, DollarSign, Calendar, Messa
 import { getRecentCommunications, type Communication } from '@/lib/firestore';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useCommunications } from '@/hooks/useCommunications';
 
 const TYPE_ICONS = {
   email: <Mail className="h-4 w-4" />,
@@ -25,23 +26,7 @@ const TYPE_LABELS = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [recentCommunications, setRecentCommunications] = useState<Communication[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadCommunications = async () => {
-      try {
-        const data = await getRecentCommunications(5);
-        setRecentCommunications(data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des communications:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCommunications();
-  }, []);
+  const { communications: recentCommunications, isLoading } = useCommunications(5);
 
   const stats = [
     {

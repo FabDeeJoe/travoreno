@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCommunications } from '@/hooks/useCommunications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QuickCommunicationDialog } from '@/components/QuickCommunicationDialog';
-import { getRecentCommunications, type Communication } from '@/lib/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Mail, Phone, Calendar, MessageSquare } from 'lucide-react';
@@ -23,23 +22,7 @@ const TYPE_LABELS = {
 };
 
 export default function CommunicationsPage() {
-  const [communications, setCommunications] = useState<Communication[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadCommunications = async () => {
-      try {
-        const data = await getRecentCommunications(50); // Charger les 50 dernières communications
-        setCommunications(data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des communications:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCommunications();
-  }, []);
+  const { communications, isLoading } = useCommunications(50);
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">

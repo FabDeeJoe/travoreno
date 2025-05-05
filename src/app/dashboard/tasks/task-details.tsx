@@ -43,7 +43,21 @@ export function TaskDetails({ task, onClose }: TaskDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     ...task,
-    dueDate: task.dueDate ? format(task.dueDate, 'yyyy-MM-dd') : '',
+    dueDate: task.dueDate
+      ? (() => {
+          let dateObj: Date;
+          if (typeof task.dueDate === 'string' || typeof task.dueDate === 'number') {
+            dateObj = new Date(task.dueDate);
+          } else if (task.dueDate instanceof Date) {
+            dateObj = task.dueDate;
+          } else if (task.dueDate && typeof (task.dueDate as any).toDate === 'function') {
+            dateObj = (task.dueDate as any).toDate();
+          } else {
+            return '';
+          }
+          return isNaN(dateObj.getTime()) ? '' : format(dateObj, 'yyyy-MM-dd');
+        })()
+      : '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,7 +130,19 @@ export function TaskDetails({ task, onClose }: TaskDetailsProps) {
           <Label>Date d'échéance</Label>
           <p className="text-sm">
             {task.dueDate
-              ? format(task.dueDate, 'dd/MM/yyyy', { locale: fr })
+              ? (() => {
+                  let dateObj: Date;
+                  if (typeof task.dueDate === 'string' || typeof task.dueDate === 'number') {
+                    dateObj = new Date(task.dueDate);
+                  } else if (task.dueDate instanceof Date) {
+                    dateObj = task.dueDate;
+                  } else if (task.dueDate && typeof (task.dueDate as any).toDate === 'function') {
+                    dateObj = (task.dueDate as any).toDate();
+                  } else {
+                    return '-';
+                  }
+                  return isNaN(dateObj.getTime()) ? '-' : format(dateObj, 'dd/MM/yyyy', { locale: fr });
+                })()
               : '-'}
           </p>
         </div>

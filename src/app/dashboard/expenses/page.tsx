@@ -22,6 +22,7 @@ import { PlusCircle, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { NewExpenseForm } from './new-expense-form';
+import { useExpenses } from '@/hooks/useExpenses';
 
 const EXPENSE_CATEGORIES = {
   transport: 'Transport',
@@ -38,27 +39,14 @@ const PAYMENT_STATUS = {
 };
 
 export default function ExpensesPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { expenses, isLoading } = useExpenses();
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewExpenseDialogOpen, setIsNewExpenseDialogOpen] = useState(false);
 
   useEffect(() => {
-    const loadExpenses = async () => {
-      try {
-        const data = await getAllExpenses();
-        setExpenses(data);
-        setFilteredExpenses(data);
-      } catch (error) {
-        console.error('Erreur lors du chargement des dépenses:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadExpenses();
-  }, []);
+    setFilteredExpenses(expenses);
+  }, [expenses]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
