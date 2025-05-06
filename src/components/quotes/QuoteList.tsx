@@ -103,17 +103,18 @@ export function QuoteList({ taskId, onCreateQuote, onQuoteClick }: QuoteListProp
                     {quote.validUntil ? `Valide jusqu'au ${new Date(quote.validUntil).toLocaleDateString()}` : 'Sans date de validité'}
                   </div>
                   <div className="font-medium">
-                    {quote.fileUrl && (
+                    {quote.files && quote.files.length > 0 && quote.files.map((file) => (
                       <a
-                        href={quote.fileUrl}
+                        key={file.fileUrl}
+                        href={file.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-blue-500 hover:text-blue-700"
+                        className="text-blue-500 hover:text-blue-700 mr-2"
                       >
                         Voir le devis
                       </a>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>

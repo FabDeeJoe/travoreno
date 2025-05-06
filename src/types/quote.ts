@@ -10,8 +10,7 @@ export interface Quote {
   quoteDate: Date;
   validUntil?: Date;
   receivedAt?: Date;
-  fileUrl?: string;
-  fileName?: string;
+  files?: Array<{ fileUrl: string; fileName: string }>;
   createdAt: Date;
   updatedAt: Date;
 } 

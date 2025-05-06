@@ -219,17 +219,23 @@ export default function QuotesPage() {
                     {quote.taskTitle || 'Tâche inconnue'}
                   </TableCell>
                   <TableCell>
-                    {quote.fileUrl && (
-                      <a
-                        href={quote.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        <FileText className="w-5 h-5" />
-                      </a>
-                    )}
+                    {quote.files && quote.files.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {quote.files.map((file) => (
+                          <a
+                            key={file.fileUrl}
+                            href={file.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-500 hover:text-blue-700"
+                          >
+                            <FileText className="w-5 h-5 inline" />
+                            <span className="sr-only">{file.fileName}</span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <Button
