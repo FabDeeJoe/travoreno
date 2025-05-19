@@ -133,10 +133,9 @@ export function NewExpenseForm({ onSuccess, onCancel }: NewExpenseFormProps) {
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
               <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(date) => date && setDate(date)}
-                initialFocus
+                value={date}
+                onChange={(date) => date && setDate(date as Date)}
+                className="rounded-md border"
               />
             </PopoverContent>
           </Popover>
