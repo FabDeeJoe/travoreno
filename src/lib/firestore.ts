@@ -15,13 +15,14 @@ export interface Contact {
 }
 
 export interface Communication {
-  id?: string;
-  contactId: string;
+  id: string;
   type: 'email' | 'phone' | 'meeting' | 'other';
   subject: string;
   content: string;
-  createdAt: Date;
-  updatedAt: Date;
+  contactId: string;
+  taskId?: string;
+  createdAt: number;
+  status: 'draft' | 'pending' | 'sent' | 'completed';
 }
 
 export type ExpenseCategory = 'transport' | 'accommodation' | 'food' | 'equipment' | 'other';
@@ -70,26 +71,15 @@ export async function createContact(contact: Omit<Contact, 'id' | 'createdAt' | 
   }
 }
 
-export async function createCommunication(communication: Omit<Communication, 'id' | 'createdAt' | 'updatedAt'>) {
+export async function createCommunication(data: Omit<Communication, 'id' | 'createdAt'>) {
+  const communicationsRef = collection(db, 'communications');
   const now = serverTimestamp();
-  const communicationData = {
-    ...communication,
+  const docRef = await addDoc(communicationsRef, {
+    ...data,
     createdAt: now,
     updatedAt: now,
-  };
-  
-  try {
-    const docRef = await addDoc(collection(db, 'communications'), communicationData);
-    return { 
-      id: docRef.id, 
-      ...communication,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-  } catch (error) {
-    console.error('Erreur lors de la création de la communication:', error);
-    throw error;
-  }
+  });
+  return docRef.id;
 }
 
 export async function getRecentCommunications(limitCount = 5) {
@@ -374,4 +364,23 @@ export async function getContact(id: string): Promise<Contact | null> {
     console.error('Error getting contact:', error);
     throw error;
   }
+}
+
+export async function updateCommunication(id: string, data: Partial<Omit<Communication, 'id' | 'createdAt'>>) {
+  const communicationRef = doc(db, 'communications', id);
+  await updateDoc(communicationRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getCommunications(limit: number = 50): Promise<Communication[]> {
+  const communicationsRef = collection(db, 'communications');
+  const q = query(communicationsRef, orderBy('createdAt', 'desc'), limit(limit));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toMillis() || Date.now(),
+  })) as Communication[];
 } 

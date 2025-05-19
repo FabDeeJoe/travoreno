@@ -1,86 +1,130 @@
 "use client"
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { Plus } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { addDoc, collection } from "firebase/firestore"
+import { createContact, createCommunication, getAllContacts, type Contact } from "@/lib/firestore"
+import { MessageSquarePlus, UserPlus, Users } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Task } from "@/types/task"
+import { collection, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-
-const communicationSchema = z.object({
-  contactName: z.string().min(1, "Le nom est requis"),
-  contactEmail: z.string().email("Email invalide").optional().or(z.literal("")),
-  contactPhone: z.string().optional(),
-  type: z.enum(["email", "phone", "meeting", "other"]),
-  subject: z.string().min(1, "Le sujet est requis"),
-  content: z.string().min(1, "Le contenu est requis"),
-})
-
-type FormData = z.infer<typeof communicationSchema>
 
 export function QuickCommunicationDialog() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [contactMode, setContactMode] = useState<'new' | 'existing'>('new')
   const { toast } = useToast()
-  const form = useForm<FormData>({
-    resolver: zodResolver(communicationSchema),
-    defaultValues: {
-      type: "meeting",
-    },
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    existingContactId: '',
+    type: '',
+    subject: '',
+    content: '',
+    taskId: 'none'
   })
 
-  const onSubmit = async (data: FormData) => {
+  useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        const loadedContacts = await getAllContacts()
+        setContacts(loadedContacts)
+      } catch (error) {
+        console.error('Erreur lors du chargement des contacts:', error)
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de charger les contacts existants.',
+          variant: 'destructive',
+        })
+      }
+    }
+
+    const loadTasks = async () => {
+      try {
+        const tasksCollection = collection(db, 'tasks')
+        const tasksSnapshot = await getDocs(tasksCollection)
+        const loadedTasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task))
+        setTasks(loadedTasks)
+      } catch (error) {
+        console.error('Erreur lors du chargement des tâches:', error)
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de charger les tâches.',
+          variant: 'destructive',
+        })
+      }
+    }
+
+    if (isOpen) {
+      loadContacts()
+      loadTasks()
+    }
+  }, [isOpen, toast])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
     try {
-      // Créer ou récupérer le contact
-      const contactRef = await addDoc(collection(db, "contacts"), {
-        name: data.contactName,
-        email: data.contactEmail,
-        phone: data.contactPhone,
-        createdAt: new Date(),
-      })
+      let contactId: string
+
+      if (contactMode === 'new') {
+        // Créer un nouveau contact
+        const contact = await createContact({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || undefined,
+        })
+        contactId = contact.id!
+      } else {
+        // Utiliser le contact existant
+        contactId = formData.existingContactId
+      }
 
       // Créer la communication
-      await addDoc(collection(db, "communications"), {
-        contactId: contactRef.id,
-        type: data.type,
-        subject: data.subject,
-        content: data.content,
-        date: new Date(),
-        createdAt: new Date(),
+      await createCommunication({
+        contactId,
+        taskId: formData.taskId === 'none' ? undefined : formData.taskId,
+        type: formData.type as 'email' | 'phone' | 'meeting' | 'other',
+        subject: formData.subject,
+        content: formData.content,
       })
 
       toast({
-        title: "Communication créée",
-        description: "La communication a été enregistrée avec succès.",
+        title: 'Communication enregistrée',
+        description: 'La communication a été créée avec succès.',
       })
+
       setIsOpen(false)
-      form.reset()
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la création de la communication.",
-        variant: "destructive",
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        existingContactId: '',
+        type: '',
+        subject: '',
+        content: '',
+        taskId: 'none'
       })
+    } catch (error) {
+      console.error('Erreur lors de la création:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Une erreur est survenue lors de la création de la communication.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -88,47 +132,103 @@ export function QuickCommunicationDialog() {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" />
+          <MessageSquarePlus className="mr-2 h-4 w-4" />
           Nouvelle communication
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <DialogHeader>
-            <DialogTitle>Nouvelle communication</DialogTitle>
-            <DialogDescription>
-              Créez rapidement une nouvelle communication avec un contact.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Input
-                {...form.register("contactName")}
-                placeholder="Nom du contact"
-              />
-              {form.formState.errors.contactName && (
-                <p className="text-sm text-red-500">
-                  {form.formState.errors.contactName.message}
-                </p>
+        <DialogHeader>
+          <DialogTitle>Nouvelle communication</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              type="button"
+              variant={contactMode === 'new' ? 'default' : 'outline'}
+              className={cn(
+                'h-24 flex flex-col items-center justify-center space-y-2',
+                contactMode === 'new' && 'ring-2 ring-primary'
               )}
+              onClick={() => setContactMode('new')}
+            >
+              <UserPlus className="h-8 w-8" />
+              <span>Nouveau contact</span>
+            </Button>
+            <Button
+              type="button"
+              variant={contactMode === 'existing' ? 'default' : 'outline'}
+              className={cn(
+                'h-24 flex flex-col items-center justify-center space-y-2',
+                contactMode === 'existing' && 'ring-2 ring-primary'
+              )}
+              onClick={() => setContactMode('existing')}
+            >
+              <Users className="h-8 w-8" />
+              <span>Contact existant</span>
+            </Button>
+          </div>
+
+          {contactMode === 'new' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nom du contact *</Label>
+                <Input
+                  id="name"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Téléphone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="existingContact">Sélectionner un contact *</Label>
+              <Select
+                value={formData.existingContactId}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, existingContactId: value }))}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.id!}>
+                      {contact.name} {contact.email ? `(${contact.email})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                {...form.register("contactEmail")}
-                placeholder="Email (optionnel)"
-                type="email"
-              />
-              <Input
-                {...form.register("contactPhone")}
-                placeholder="Téléphone (optionnel)"
-              />
-            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="type">Type de communication *</Label>
             <Select
-              defaultValue={form.getValues("type")}
-              onValueChange={(value) => form.setValue("type", value as FormData["type"])}
+              required
+              value={formData.type}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Type de communication" />
+                <SelectValue placeholder="Sélectionnez un type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="email">Email</SelectItem>
@@ -137,33 +237,61 @@ export function QuickCommunicationDialog() {
                 <SelectItem value="other">Autre</SelectItem>
               </SelectContent>
             </Select>
-            <div className="grid gap-2">
-              <Input
-                {...form.register("subject")}
-                placeholder="Sujet"
-              />
-              {form.formState.errors.subject && (
-                <p className="text-sm text-red-500">
-                  {form.formState.errors.subject.message}
-                </p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Textarea
-                {...form.register("content")}
-                placeholder="Contenu de la communication"
-                className="h-32"
-              />
-              {form.formState.errors.content && (
-                <p className="text-sm text-red-500">
-                  {form.formState.errors.content.message}
-                </p>
-              )}
-            </div>
           </div>
-          <DialogFooter>
-            <Button type="submit">Enregistrer</Button>
-          </DialogFooter>
+
+          <div className="space-y-2">
+            <Label htmlFor="subject">Sujet *</Label>
+            <Input
+              id="subject"
+              required
+              value={formData.subject}
+              onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="content">Contenu *</Label>
+            <Textarea
+              id="content"
+              required
+              value={formData.content}
+              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="task">Tâche associée (optionnel)</Label>
+            <Select
+              value={formData.taskId}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, taskId: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir une tâche" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune tâche</SelectItem>
+                {tasks.map((task) => (
+                  <SelectItem key={task.id} value={task.id}>
+                    {task.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              disabled={isLoading}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

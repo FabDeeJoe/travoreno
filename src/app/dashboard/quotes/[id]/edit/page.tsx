@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import QuoteForm from '@/components/quotes/QuoteForm';
 import { getQuote, updateQuote, getTask, getContact, Contact } from '@/lib/firestore';
@@ -9,12 +9,13 @@ import { Task } from '@/types/task';
 import { toast } from '@/components/ui/use-toast';
 
 interface EditQuotePageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function EditQuotePage({ params }: EditQuotePageProps) {
+export default function EditQuotePage(props: EditQuotePageProps) {
+  const params = use(props.params);
   const router = useRouter();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [task, setTask] = useState<Task | null>(null);

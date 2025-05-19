@@ -6,6 +6,7 @@ import { Communication } from '@/lib/firestore';
 export function useCommunications(limitCount?: number, contactId?: string) {
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let q = query(collection(db, 'communications'), orderBy('createdAt', 'desc'));
@@ -23,6 +24,7 @@ export function useCommunications(limitCount?: number, contactId?: string) {
           return {
             id: doc.id,
             contactId: data.contactId,
+            taskId: data.taskId,
             type: data.type,
             subject: data.subject,
             content: data.content,
@@ -34,7 +36,9 @@ export function useCommunications(limitCount?: number, contactId?: string) {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [limitCount, contactId]);
+  }, [limitCount, contactId, version]);
 
-  return { communications, isLoading };
+  const mutate = () => setVersion(v => v + 1);
+
+  return { communications, isLoading, mutate };
 } 

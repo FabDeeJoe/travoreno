@@ -11,6 +11,7 @@ export interface Contact {
 export interface Communication {
   id: string;
   contactId: string;
+  taskId?: string;
   type: 'email' | 'phone' | 'meeting' | 'other';
   subject: string;
   content: string;

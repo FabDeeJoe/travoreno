@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { QuickCommunicationDialog } from '@/components/QuickCommunicationDialog';
+import { QuickCommunicationDialog } from '@/components/communications/QuickCommunicationDialog';
 import { Users, ClipboardList, Receipt, Phone, Mail, DollarSign, Calendar, MessageSquare } from 'lucide-react';
 import { getRecentCommunications, type Communication } from '@/lib/firestore';
 import { format, formatDistanceToNow } from 'date-fns';
