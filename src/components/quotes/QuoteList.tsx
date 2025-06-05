@@ -12,6 +12,41 @@ interface QuoteListProps {
   onQuoteClick: (quote: Quote) => void;
 }
 
+const getFormattedDate = (date: any): string => {
+  if (!date) return '-';
+
+  // Debug : afficher la valeur reçue
+  // eslint-disable-next-line no-console
+  console.debug('getFormattedDate input:', date);
+
+  // Gestion Firestore Timestamp (Firebase JS SDK v9+)
+  if (typeof date === 'object' && date !== null) {
+    // Firestore Timestamp avec méthode toDate
+    if (typeof date.toDate === 'function') {
+      date = date.toDate();
+    }
+    // Firestore Timestamp avec _seconds
+    else if (typeof date._seconds === 'number') {
+      date = new Date(date._seconds * 1000);
+    }
+  }
+
+  const d = typeof date === 'string' || typeof date === 'number'
+    ? new Date(date)
+    : date instanceof Date
+      ? date
+      : new Date(date);
+
+  // Si la date est invalide ou antérieure à 2001, on retourne '-'
+  if (isNaN(d.getTime()) || d.getFullYear() < 2001) return '-';
+
+  return d.toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
 export function QuoteList({ taskId, onCreateQuote, onQuoteClick }: QuoteListProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +126,7 @@ export function QuoteList({ taskId, onCreateQuote, onQuoteClick }: QuoteListProp
                   <div>
                     <div className="font-medium">{quote.reference}</div>
                     <div className="text-sm text-gray-500">
-                      {new Date(quote.quoteDate).toLocaleDateString()}
+                      {getFormattedDate(quote.quoteDate)}
                     </div>
                   </div>
                   <div className={`text-sm font-medium ${getStatusColor(quote.status)}`}>
@@ -100,7 +135,7 @@ export function QuoteList({ taskId, onCreateQuote, onQuoteClick }: QuoteListProp
                 </div>
                 <div className="mt-2 flex justify-between items-center">
                   <div className="text-sm text-gray-500">
-                    {quote.validUntil ? `Valide jusqu'au ${new Date(quote.validUntil).toLocaleDateString()}` : 'Sans date de validité'}
+                    {quote.validUntil ? `Valide jusqu'au ${getFormattedDate(quote.validUntil)}` : 'Sans date de validité'}
                   </div>
                   <div className="font-medium">
                     {quote.files && quote.files.length > 0 && quote.files.map((file) => (
