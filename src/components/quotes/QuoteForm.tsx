@@ -18,6 +18,8 @@ interface QuoteFormProps {
   task: Task;
   onSubmit: (data: Partial<Quote>) => Promise<void>;
   isSubmitting?: boolean;
+  initialFiles?: File[];
+  initialReference?: string | null;
 }
 
 function getValidDateString(date: any): string {
@@ -34,51 +36,84 @@ function getValidDateString(date: any): string {
     : d.toISOString().split('T')[0];
 }
 
-export default function QuoteForm({ quote, contact, task, onSubmit, isSubmitting = false }: QuoteFormProps) {
+export default function QuoteForm({
+  quote,
+  contact,
+  task,
+  onSubmit,
+  isSubmitting = false,
+  initialFiles = [],
+  initialReference = null
+}: QuoteFormProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [filePreviews, setFilePreviews] = useState<(string | null)[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ fileUrl: string; fileName: string }>>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{ fileUrl: string; fileName: string }>>(quote?.files || []);
+  const [status, setStatus] = useState<QuoteStatus>(quote?.status || 'draft');
+  const [reference, setReference] = useState(quote?.reference || initialReference || '');
 
+  // Initialiser les fichiers uploadés une seule fois au montage du composant
   useEffect(() => {
-    setUploadedFiles(quote?.files || []);
+    if (quote?.files) {
+      setUploadedFiles(quote.files);
+    }
   }, [quote?.files]);
+
+  // Gérer les fichiers initiaux une seule fois au montage du composant
+  useEffect(() => {
+    if (initialFiles.length > 0) {
+      setSelectedFiles(initialFiles);
+      const newPreviews = initialFiles.map(file => {
+        if (file.type.startsWith('image/')) {
+          return URL.createObjectURL(file);
+        }
+        return '';
+      });
+      setFilePreviews(newPreviews);
+
+      // Cleanup function
+      return () => {
+        newPreviews.forEach(preview => {
+          if (preview) URL.revokeObjectURL(preview);
+        });
+      };
+    }
+  }, []); // Exécuté une seule fois au montage
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    const validFiles = files.filter(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`Le fichier ${file.name} est trop volumineux (max 5MB)`);
-        return false;
-      }
-      if (!allowedTypes.includes(file.type)) {
-        toast.error(`Type de fichier non supporté pour ${file.name} (PDF, PNG, JPG uniquement)`);
-        return false;
-      }
-      return true;
+    if (files.length === 0) return;
+
+    // Nettoyer les anciennes previews avant d'en créer de nouvelles
+    filePreviews.forEach(preview => {
+      if (preview) URL.revokeObjectURL(preview);
     });
-    setSelectedFiles(prev => [...prev, ...validFiles]);
-    // Générer les previews pour les images
-    validFiles.forEach((file) => {
+
+    const newPreviews = files.map(file => {
       if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFilePreviews(prev => [...prev, reader.result as string]);
-        };
-        reader.onerror = () => {
-          toast.error('Erreur lors de la lecture du fichier');
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setFilePreviews(prev => [...prev, null]);
+        return URL.createObjectURL(file);
       }
+      return '';
     });
+
+    setSelectedFiles(files);
+    setFilePreviews(newPreviews);
   };
 
   const removeSelectedFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setFilePreviews(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles(prev => {
+      const newFiles = [...prev];
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
+
+    setFilePreviews(prev => {
+      const newPreviews = [...prev];
+      const removedPreview = newPreviews[index];
+      if (removedPreview) URL.revokeObjectURL(removedPreview);
+      newPreviews.splice(index, 1);
+      return newPreviews;
+    });
   };
 
   const removeUploadedFile = async (fileUrl: string) => {
@@ -104,6 +139,7 @@ export default function QuoteForm({ quote, contact, task, onSubmit, isSubmitting
     try {
       const formData = new FormData(event.currentTarget);
       let newFiles = [...uploadedFiles];
+      
       // Upload tous les nouveaux fichiers sélectionnés
       for (const file of selectedFiles) {
         try {
@@ -113,9 +149,11 @@ export default function QuoteForm({ quote, contact, task, onSubmit, isSubmitting
           toast.error(`Erreur lors de l'upload du fichier ${file.name}`);
         }
       }
+
       // Récupérer et valider les dates
       const quoteDateValue = formData.get('quoteDate') as string;
       const validUntilValue = formData.get('validUntil') as string;
+      
       const data: Partial<Quote> = {
         reference: formData.get('reference') as string,
         status: formData.get('status') as QuoteStatus,
@@ -124,7 +162,14 @@ export default function QuoteForm({ quote, contact, task, onSubmit, isSubmitting
         ...(validUntilValue ? { validUntil: new Date(validUntilValue) } : {}),
         files: newFiles,
       };
+
       await onSubmit(data);
+      
+      // Nettoyer les previews
+      filePreviews.forEach(preview => {
+        if (preview) URL.revokeObjectURL(preview);
+      });
+      
       setSelectedFiles([]);
       setFilePreviews([]);
     } catch (error) {
@@ -147,24 +192,25 @@ export default function QuoteForm({ quote, contact, task, onSubmit, isSubmitting
               <Input
                 id="reference"
                 name="reference"
-                defaultValue={quote?.reference}
+                defaultValue={quote?.reference || initialReference || ''}
                 required
                 disabled={isSubmitting || isUploading}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Statut</Label>
-              <Select name="status" defaultValue={quote?.status || 'draft'} disabled={isSubmitting || isUploading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Brouillon</SelectItem>
-                  <SelectItem value="sent">Envoyé</SelectItem>
-                  <SelectItem value="accepted">Accepté</SelectItem>
-                  <SelectItem value="rejected">Refusé</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                id="status"
+                name="status"
+                defaultValue={quote?.status || 'draft'}
+                disabled={isSubmitting || isUploading}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="draft">Brouillon</option>
+                <option value="sent">Envoyé</option>
+                <option value="accepted">Accepté</option>
+                <option value="rejected">Refusé</option>
+              </select>
             </div>
           </div>
 
