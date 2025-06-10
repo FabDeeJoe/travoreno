@@ -40,7 +40,7 @@ export default function CommunicationsPage() {
     return COMMUNICATION_STAGES.reduce((acc, stage) => {
       acc[stage.id] = communications.filter(comm => comm.status === stage.id);
       return acc;
-    }, {});
+    }, {} as Record<string, typeof communications>);
   }, [communications]);
 
   const handleNewCommunication = () => {
@@ -48,7 +48,7 @@ export default function CommunicationsPage() {
     setIsDrawerOpen(true);
   };
 
-  const handleCommunicationClick = (communication) => {
+  const handleCommunicationClick = (communication: any) => {
     setSelectedCommunication(communication);
     setIsDrawerOpen(true);
   };
